@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -156,7 +155,7 @@ func (b *broker) handleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rawMessage, _ := json.Marshal(outBoundMessage{messageType, p.Text, p.UserName, p.Channel, strconv.Itoa(int(time.Now().Unix()))})
+	rawMessage, _ := json.Marshal(outBoundMessage{messageType, p.Text, p.UserName, p.Channel, time.Now().Format(time.RFC3339Nano)})
 	message := string(rawMessage)
 
 	// Store the message for replay by future joining clients
