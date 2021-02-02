@@ -26,6 +26,7 @@ const (
 	channelListName = "channels"
 	messageType     = "message"
 	channelType     = "channel"
+	maxStringLength = 2000
 )
 
 var ctx = context.Background()
@@ -148,14 +149,20 @@ func (b *broker) Start() {
 }
 
 func (b *broker) handleMessage(w http.ResponseWriter, r *http.Request) {
-	var p message
-	err := json.NewDecoder(r.Body).Decode(&p)
+	var inboundMessage message
+	err := json.NewDecoder(r.Body).Decode(&inboundMessage)
 	if err != nil {
 		http.Error(w, "Bad JSON body", http.StatusBadRequest)
 		return
 	}
 
-	rawMessage, _ := json.Marshal(outBoundMessage{messageType, p.Text, p.UserName, p.Channel, time.Now().Format(time.RFC3339Nano)})
+	// Check that the message text and username do not exceed some limit
+	if tooLong(inboundMessage.UserName) || tooLong(inboundMessage.Text) {
+		http.Error(w, fmt.Sprintf("Username/Text too long, max length is %d", maxStringLength), http.StatusBadRequest)
+		return
+	}
+
+	rawMessage, _ := json.Marshal(outBoundMessage{messageType, inboundMessage.Text, inboundMessage.UserName, inboundMessage.Channel, time.Now().Format(time.RFC3339Nano)})
 	message := string(rawMessage)
 
 	// Store the message for replay by future joining clients
@@ -262,4 +269,11 @@ func main() {
 
 	// Start the server and listen forever on port 8000.
 	http.ListenAndServe(":8081", nil)
+}
+
+func tooLong(s string) bool {
+	if len(s) > maxStringLength {
+		return true
+	}
+	return false
 }
